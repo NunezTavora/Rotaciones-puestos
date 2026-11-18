@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#edefec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111416" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Rotación de Puestos 2.0</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: barra de pestañas fija arriba; una sección por puesto, ordenadas de caliente a frío. */
+:root {
+  --bg: #edefec;
+  --surface: #fafbf9;
+  --ink: #15191c;
+  --muted: #5b6469;
+  --line: #d2d7d3;
+  --action: #15191c;
+  --action-ink: #fafbf9;
+  --warn: #b3261e;
+  --ok: #2d6a3e;
+  --hit: #fff2b8;
+  --h0: #d8431e;
+  --h1: #ea8a1f;
+  --h2: #5f9c72;
+  --h3: #3e86b8;
+  --h4: #3b5ba8;
+  --h5: #8a9296;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "Barlow", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111416; --surface: #1a1f22; --ink: #eceeed; --muted: #98a2a7; --line: #2c3337;
+    --action: #eceeed; --action-ink: #111416; --warn: #ff8a80; --ok: #8fd1a2; --hit: #5a4b10;
+    --h0: #f0643f; --h1: #f5a14a; --h2: #78b88b; --h3: #5ba4d6; --h4: #7f9be0; --h5: #8e989d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111416; --surface: #1a1f22; --ink: #eceeed; --muted: #98a2a7; --line: #2c3337;
+  --action: #eceeed; --action-ink: #111416; --warn: #ff8a80; --ok: #8fd1a2; --hit: #5a4b10;
+  --h0: #f0643f; --h1: #f5a14a; --h2: #78b88b; --h3: #5ba4d6; --h4: #7f9be0; --h5: #8e989d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.4;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 40px;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 720px; margin: 0 auto; }
+header { padding-top: 16px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 34px; letter-spacing: .01em; text-transform: uppercase; margin: 0; line-height: 1; }
+.sub { color: var(--muted); margin: 4px 0 0; font-size: 14px; }
+.status { margin-top: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; justify-content: space-between; }
+.status .now { font-family: var(--display); font-weight: 600; font-size: 22px; text-transform: uppercase; }
+.status .count { font-family: var(--mono); font-size: 20px; font-variant-numeric: tabular-nums; }
+.status small { color: var(--muted); width: 100%; }
+nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding: 12px 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+nav button { font-family: var(--display); font-weight: 600; font-size: 18px; text-transform: uppercase; letter-spacing: .03em; padding: 10px 4px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 6px; cursor: pointer; min-width: 0; }
+nav button small { display: block; font-family: var(--mono); font-weight: 400; font-size: 11px; color: var(--muted); text-transform: none; letter-spacing: 0; }
+nav button[aria-selected="true"] { background: var(--action); color: var(--action-ink); border-color: var(--action); }
+nav button[aria-selected="true"] small { color: inherit; opacity: .8; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--h3); outline-offset: 2px; }
+section.pos { margin-top: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 12px 14px; }
+.pos-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.heat { width: 6px; align-self: stretch; border-radius: 3px; min-height: 26px; }
+.pos-head h2 { font-family: var(--display); font-weight: 600; font-size: 22px; text-transform: uppercase; letter-spacing: .02em; margin: 0; flex: 1; }
+.pos-head .cnt { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.slot { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.slot label { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+input[type=text], input[type=time], input[type=search] {
+  width: 100%; min-width: 0; font: 500 16px var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 9px 10px;
+}
+input.dup { border-color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
+.rules { margin-top: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; font-size: 14px; }
+.rules .r { font-family: var(--mono); font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+.rules ul { margin: 0; padding-left: 18px; color: var(--warn); }
+.rules .good { margin: 0; color: var(--ok); }
+.notice { margin-top: 12px; background: var(--surface); border: 1px solid var(--warn); border-radius: 6px; padding: 12px; color: var(--warn); font-size: 14px; }
+.notice ul { margin: 6px 0 0; padding-left: 18px; }
+.settings { margin-top: 12px; display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+.settings label { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: 220px; }
+.warnmsg { color: var(--warn); font-size: 14px; margin: 10px 0 0; }
+.actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { font: 600 15px var(--body); padding: 11px 16px; border-radius: 6px; border: 1px solid var(--action); background: var(--action); color: var(--action-ink); cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 500 15px var(--mono); padding: 6px 10px; border-radius: 5px; background: var(--bg); border: 1px solid var(--line); min-width: 0; overflow-wrap: anywhere; }
+.chip small { display: block; font: 400 11px var(--body); color: var(--muted); }
+.chip small.same { color: var(--warn); }
+.chip.hit { background: var(--hit); border-color: var(--ink); }
+.tools { margin-top: 4px; display: grid; gap: 8px; }
+.trace { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; font-size: 15px; }
+.trace b { font-family: var(--mono); font-weight: 500; }
+.trace ol { margin: 6px 0 0; padding-left: 20px; }
+.trace li { margin: 2px 0; }
+textarea { width: 100%; min-height: 160px; margin-top: 10px; font: 14px var(--mono); background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+.legend { margin: 10px 0 0; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.legend i { flex: 1; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--h0), var(--h1), var(--h2), var(--h3), var(--h4)); }
+@media (prefers-reduced-motion: no-preference) { nav button { transition: background .15s, color .15s; } }
+
+.minor-title{font:600 22px var(--display);text-transform:uppercase;margin:18px 0 4px}.hint{font-size:13px;color:var(--muted);margin:5px 0 10px}.manual-pos{border-style:dashed}.manual-dot{width:6px;align-self:stretch;min-height:26px;border-radius:3px;background:var(--h5)}.manual-tramo{margin-top:18px;padding-top:12px;border-top:1px solid var(--line)}.manual-add{margin-top:8px}.manual-add .btn{font-size:13px;padding:8px 11px}.eyebrow{font:500 11px var(--mono);letter-spacing:.08em;color:var(--muted)}.tramo-intro{display:flex;align-items:end;justify-content:space-between;margin:8px 0 12px}.tramo-intro h2,.order-card h2,.timer-head h2{font:600 25px var(--display);text-transform:uppercase;margin:0}.tramo-intro>b{font:500 14px var(--mono)}.timer-card,.order-card{margin:12px 0;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}.timer-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.timer-state{font:600 11px var(--mono);padding:5px 8px;border-radius:4px;background:var(--bg)}.timer-state.running{color:var(--ok)}.timer-state.over{color:var(--warn);background:var(--hit)}.timer-time{font:500 clamp(38px,12vw,54px) var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.04em;margin:12px 0 4px}.timer-meta{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}.timer-meta b{font-family:var(--mono);color:var(--ink)}.timer-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.timer-note{font-size:12px;color:var(--muted);margin:10px 0 0}.first-move{display:grid;gap:3px;background:var(--hit);border:1px solid var(--line);padding:10px 12px;border-radius:6px;margin:12px 0}.first-move span{font:500 10px var(--mono);letter-spacing:.08em}.first-move b{font:600 20px var(--display);text-transform:uppercase}.first-move small{font:12px var(--mono)}.move-list{padding-left:24px;margin:10px 0}.move-list li{padding:7px 0;border-bottom:1px solid var(--line)}.move-list li b,.move-list li span,.move-list li small{display:block}.move-list li b{font:500 14px var(--mono)}.move-list li span{font-size:14px}.move-list li small{font-size:11px;color:var(--muted)}.coverage{border-top:1px solid var(--line);padding-top:10px;font-size:12px}.coverage-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:7px;color:var(--muted)}.coverage-list span{background:var(--bg);padding:6px;border-radius:4px}.good{color:var(--ok)}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Rotación de Puestos</h1>
+    <p class="sub">3 tramos de 1 h 30 min · 2 cambios en 4 h 30 min</p>
+    <div class="status" id="status"></div>
+  </header>
+  <nav id="tabs" role="tablist"></nav>
+  <main id="view"></main>
+</div>
+
+<script>
+var AUTO_POS = [
+  { name: "Water Spider", short: "Spider", n: 6, distance: 1, color: "var(--h0)" },
+  { name: "Feeder", short: "Feeder", n: 6, distance: 2, color: "var(--h1)" },
+  { name: "Inductor", short: "Inductor", n: 6, distance: 0, color: "var(--h2)" },
+  { name: "Pusher", short: "Pusher", n: 5, distance: 3, color: "var(--h3)" },
+  { name: "Diverter", short: "Diverter", n: 4, distance: 5, color: "var(--h4)" }
+];
+var MANUAL_POS = [{ key: "fiveS", name: "5S", n: 6, labels: ["5S 1", "5S 2", "5S 3", "5S 4", "5S 5", "5S 6"] }, { key: "teamLift", name: "Team Lift", n: 6, labels: ["Feeder", "Inductor", "Water Spider", "Stower 1", "Stower 2", "5S"] }];
+var POS = AUTO_POS;
+var PMIN = 1, PMAX = 5, DMIN = 2, DMAX = 4, KEY = "rotpuestos.v2";
+var posOfSlot = [], firstOfPos = [];
+AUTO_POS.forEach(function (p, pi) { firstOfPos.push(posOfSlot.length); for (var k = 0; k < p.n; k++) posOfSlot.push(pi); });
+var TOTAL = posOfSlot.length, TEMPLATE_TOTAL = TOTAL + 12;
+function blankManual() { return { fiveS: new Array(6).fill(""), teamLift: new Array(6).fill("") }; }
+function cloneManual(m) { return { fiveS: (m && m.fiveS ? m.fiveS : []).slice(0, 6).concat(new Array(6).fill("")).slice(0, 6), teamLift: (m && m.teamLift ? m.teamLift : []).slice(0, 6).concat(new Array(6).fill("")).slice(0, 6) }; }
+function defaultTimers() { return { "2": { elapsedMs: 0, startedAt: null }, "3": { elapsedMs: 0, startedAt: null } }; }
+var state = { start: "06:00", slots: [], manualTemplate: blankManual(), manual: { "1": blankManual(), "2": blankManual(), "3": blankManual() }, timers: defaultTimers(), manualOpen: { "1": {}, "2": {}, "3": {} } };
+var tab = "plantilla", query = "", lastPlan = null;
+function migrateSaved(saved) {
+  if (!saved || !Array.isArray(saved.slots)) return;
+  var s = saved.slots, auto = new Array(TOTAL).fill(""), mt = blankManual();
+  if (s.length === TOTAL) auto = s.slice();
+  else if (s.length === 31) {
+    var oldAt = 0, oldCounts = [5, 6, 6, 4, 4, 6];
+    for (var i = 0; i < 5; i++) {
+      var oldN = oldCounts[i];
+      for (var j = 0; j < Math.min(oldN, AUTO_POS[i].n); j++) auto[firstOfPos[i] + j] = s[oldAt + j] || "";
+      oldAt += oldN;
+    }
+    for (var k = 0; k < 6; k++) mt.fiveS[k] = s[oldAt + k] || "";
+  } else if (s.length === 25 || s.length === 23) {
+    var oldCounts2 = s.length === 25 ? [5, 6, 6, 4, 4] : [5, 6, 6, 3, 3], at = 0;
+    for (var x = 0; x < 5; x++) { for (var y = 0; y < Math.min(oldCounts2[x], AUTO_POS[x].n); y++) auto[firstOfPos[x] + y] = s[at + y] || ""; at += oldCounts2[x]; }
+  }
+  state = {
+    start: saved.start || "06:00", slots: auto,
+    manualTemplate: cloneManual(saved.manualTemplate || mt),
+    manual: saved.manual ? { "1": cloneManual(saved.manual["1"]), "2": cloneManual(saved.manual["2"]), "3": cloneManual(saved.manual["3"]) } : { "1": cloneManual(mt), "2": cloneManual(mt), "3": cloneManual(mt) },
+    timers: saved.timers || defaultTimers(),
+    manualOpen: saved.manualOpen || { "1": {}, "2": {}, "3": {} }
+  };
+}
+try { migrateSaved(JSON.parse(localStorage.getItem(KEY) || "null")); } catch (e) {}
+while (state.slots.length < TOTAL) state.slots.push("");
+state.manualTemplate = cloneManual(state.manualTemplate);
+state.manual = state.manual || { "1": cloneManual(state.manualTemplate), "2": cloneManual(state.manualTemplate), "3": cloneManual(state.manualTemplate) };
+["1", "2", "3"].forEach(function (t) { state.manual[t] = cloneManual(state.manual[t] || state.manualTemplate); state.manualOpen[t] = state.manualOpen[t] || {}; });
+state.timers = state.timers || defaultTimers();
+["2", "3"].forEach(function (t) { if (!state.timers[t]) state.timers[t] = { elapsedMs: 0, startedAt: null }; });
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+function pad(n) { return (n < 10 ? "0" : "") + n; }
+function startMin() { var p = (state.start || "06:00").split(":"); return (+p[0]) * 60 + (+p[1]); }
+function hm(min) { min = ((min % 1440) + 1440) % 1440; return pad(Math.floor(min / 60)) + ":" + pad(min % 60); }
+function range(t) { var s = startMin() + t * 90; return hm(s) + "–" + hm(s + 90); }
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+function manualValues(m) { return (m.fiveS || []).concat(m.teamLift || []); }
+function allTemplateValues() { return state.slots.concat(manualValues(state.manualTemplate)); }
+function duplicateKeys(values) { var seen = {}, d = {}; values.forEach(function (v) { var k = String(v || "").trim().toLowerCase(); if (!k) return; if (seen[k]) d[k] = 1; seen[k] = 1; }); return d; }
+function dupSet() { return duplicateKeys(allTemplateValues()); }
+function dupSetTramo(t) { return duplicateKeys(state.slots.concat(manualValues(state.manual[String(t)]))); }
+function baseCounts() { var c = [0, 0, 0, 0, 0]; state.slots.forEach(function (v, i) { if (String(v).trim()) c[posOfSlot[i]]++; }); return c; }
+function validate(c) {
+  var m = [];
+  if (c[0] < 1 || c[0] > 6) m.push("Water Spider: debe haber entre 1 y 6 personas (hay " + c[0] + ").");
+  if (c[1] !== c[2]) m.push("Feeder e Inductor deben tener el mismo número (hay " + c[1] + " y " + c[2] + ").");
+  if (c[3] < PMIN || c[3] > PMAX) m.push("Pusher: debe haber entre " + PMIN + " y " + PMAX + " personas (hay " + c[3] + ").");
+  if (c[4] < DMIN || c[4] > DMAX) m.push("Diverter: debe haber entre " + DMIN + " y " + DMAX + " personas (hay " + c[4] + ").");
+  return m;
+}
+function workers() { var w = []; state.slots.forEach(function (v, i) { if (String(v).trim()) w.push({ login: String(v).trim(), p0: posOfSlot[i] }); }); return w; }
+/* Coste: evita repetir puesto; favorece avanzar hacia puestos más fríos. Los saltos desde frío hacia caliente reciben una penalización mayor. */
+function mcost(p, q, hist) {
+  if (p === q) return 90;
+  var delta = q - p, travel = Math.abs(AUTO_POS[p].distance - AUTO_POS[q].distance) * 3;
+  var c = travel + (delta > 0 ? Math.max(0, delta - 1) : 12 + (Math.abs(delta) - 1) * 5);
+  if (hist.indexOf(q) > -1) c += 28;
+  return c;
+}
+function hungarian(a, n) {
+  var INF = 1e9, u = new Array(n + 1).fill(0), v = new Array(n + 1).fill(0), p = new Array(n + 1).fill(0), way = new Array(n + 1).fill(0);
+  for (var i = 1; i <= n; i++) {
+    p[0] = i; var j0 = 0, minv = new Array(n + 1).fill(INF), used = new Array(n + 1).fill(false);
+    do {
+      used[j0] = true; var i0 = p[j0], delta = INF, j1 = 0;
+      for (var j = 1; j <= n; j++) if (!used[j]) { var cur = a[i0 - 1][j - 1] - u[i0] - v[j]; if (cur < minv[j]) { minv[j] = cur; way[j] = j0; } if (minv[j] < delta) { delta = minv[j]; j1 = j; } }
+      for (var k = 0; k <= n; k++) { if (used[k]) { u[p[k]] += delta; v[k] -= delta; } else minv[k] -= delta; }
+      j0 = j1;
+    } while (p[j0] !== 0);
+    do { var jj = way[j0]; p[j0] = p[jj]; j0 = jj; } while (j0);
+  }
+  var res = new Array(n); for (var x = 1; x <= n; x++) res[p[x] - 1] = x - 1; return res;
+}
+function solveStep(pos, hist, counts) {
+  var slotPos = []; counts.forEach(function (c, q) { for (var k = 0; k < c; k++) slotPos.push(q); });
+  if (slotPos.length !== pos.length) return { err: "No se puede calcular: las plazas no coinciden con el número de trabajadores." };
+  var a = pos.map(function (p, w) { return slotPos.map(function (q) { return mcost(p, q, hist[w]); }); });
+  var asg = hungarian(a, pos.length), np = []; for (var w = 0; w < pos.length; w++) np[w] = slotPos[asg[w]];
+  return { pos: np };
+}
+function computePlan() {
+  var W = workers(), counts = baseCounts(), p0 = W.map(function (w) { return w.p0; }), hist = W.map(function (w) { return [w.p0]; });
+  var s1 = solveStep(p0, hist, counts); if (s1.err) return { err: s1.err };
+  var h1 = hist.map(function (h, i) { return h.concat([s1.pos[i]]); });
+  var s2 = solveStep(s1.pos, h1, counts); if (s2.err) return { err: s2.err };
+  return { W: W, p: [p0, s1.pos, s2.pos], counts: counts };
+}
+function renderTabs() {
+  var filled = allTemplateValues().filter(function (s) { return String(s).trim(); }).length;
+  var items = [["plantilla", "Plantilla", filled + "/" + TEMPLATE_TOTAL]];
+  for (var t = 0; t < 3; t++) items.push([String(t), "Tramo " + (t + 1), hm(startMin() + t * 90)]);
+  document.getElementById("tabs").innerHTML = items.map(function (it) { return '<button role="tab" data-tab="' + it[0] + '" aria-selected="' + (String(tab) === it[0]) + '">' + it[1] + "<small>" + it[2] + "</small></button>"; }).join("");
+}
+function manualTemplateHtml() {
+  var html = '<h2 class="minor-title">Puestos de gestión manual</h2><p class="hint">Estos puestos no participan en la escala de calor/frío. Sus asignaciones iniciales se copian a los tres tramos y después puedes modificarlas por separado.</p>';
+  MANUAL_POS.forEach(function (p) {
+    var cells = "";
+    for (var k = 0; k < 6; k++) cells += '<div class="slot"><label>' + p.labels[k] + '</label><input type="text" data-mt="' + p.key + '" data-i="' + k + '" value="' + esc(state.manualTemplate[p.key][k] || "") + '" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="login"></div>';
+    html += '<section class="pos manual-pos"><div class="pos-head"><span class="manual-dot"></span><h2>' + p.name + '</h2><span class="cnt" id="manual-cnt-' + p.key + '">' + state.manualTemplate[p.key].filter(function (v) { return String(v).trim(); }).length + '/6</span></div><div class="grid">' + cells + '</div></section>';
+  });
+  return html;
+}
+function rulesHtml() {
+  var errs = validate(baseCounts()), h = '<p class="r">Spider 1–6 · Feeder = Inductor · Pusher 1–5 · Diverter 2–4 · 5S y Team Lift: gestión manual</p>';
+  h += errs.length ? "<ul>" + errs.map(function (e) { return "<li>" + e + "</li>"; }).join("") + "</ul>" : '<p class="good">La plantilla de rotación automática cumple las reglas.</p>';
+  return h;
+}
+function renderPlantilla() {
+  var dups = dupSet(), html = "";
+  AUTO_POS.forEach(function (p, pi) {
+    var filled = 0, cells = "";
+    for (var k = 0; k < p.n; k++) { var idx = firstOfPos[pi] + k, v = state.slots[idx]; if (String(v).trim()) filled++; cells += '<div class="slot"><label for="s' + idx + '">' + p.short + " " + (k + 1) + '</label><input type="text" id="s' + idx + '" data-i="' + idx + '" value="' + esc(v) + '" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="login"></div>'; }
+    html += '<section class="pos"><div class="pos-head"><span class="heat" style="background:var(--h' + pi + ')"></span><h2>' + p.name + '</h2><span class="cnt" id="cnt' + pi + '">' + filled + "/" + p.n + '</span></div><div class="grid">' + cells + "</div></section>";
+  });
+  html += '<div class="legend"><span>Caliente</span><i></i><span>Frío</span></div>' + manualTemplateHtml();
+  html += '<div class="rules" id="rules">' + rulesHtml() + "</div>";
+  html += '<p class="warnmsg" id="dupmsg"' + (Object.keys(dups).length ? "" : " hidden") + '>Hay logins repetidos en la plantilla. Revisa los campos marcados en rojo.</p>';
+  html += '<div class="settings"><label>Inicio del primer tramo<input type="time" id="start" value="' + esc(state.start) + '"></label></div>';
+  html += '<div class="actions"><button class="btn" id="go" data-go="0"' + (validate(baseCounts()).length || Object.keys(dups).length ? " disabled" : "") + '>Ver rotación</button><button class="btn ghost" id="clear">Vaciar plantilla</button></div>';
+  document.getElementById("view").innerHTML = html; refreshPlantillaMarks();
+}
+function refreshPlantillaMarks() {
+  var dups = dupSet(), c = baseCounts();
+  MANUAL_POS.forEach(function (p) { var el = document.getElementById("manual-cnt-" + p.key); if (el) el.textContent = state.manualTemplate[p.key].filter(function (v) { return String(v).trim(); }).length + "/6"; });
+  AUTO_POS.forEach(function (p, pi) { var el = document.getElementById("cnt" + pi); if (el) el.textContent = c[pi] + "/" + p.n; });
+  document.querySelectorAll("input[data-i],input[data-mt]").forEach(function (inp) { var k = inp.value.trim().toLowerCase(); inp.classList.toggle("dup", !!(k && dups[k])); });
+  var m = document.getElementById("dupmsg"); if (m) m.hidden = !Object.keys(dups).length;
+  var r = document.getElementById("rules"); if (r) r.innerHTML = rulesHtml();
+  var g = document.getElementById("go"); if (g) g.disabled = validate(c).length > 0 || Object.keys(dups).length > 0;
+  renderTabs();
+}
+function findWorker(q) {
+  if (!lastPlan || !lastPlan.W) return -1; q = q.trim().toLowerCase(); if (!q) return -1; var hit = -1;
+  lastPlan.W.forEach(function (w, i) { if (hit < 0 && w.login.toLowerCase() === q) hit = i; });
+  if (hit < 0) lastPlan.W.forEach(function (w, i) { if (hit < 0 && w.login.toLowerCase().indexOf(q) > -1) hit = i; }); return hit;
+}
+function timerElapsed(t) { var tm = state.timers[String(t)]; return Math.max(0, (tm.elapsedMs || 0) + (tm.startedAt ? Date.now() - tm.startedAt : 0)); }
+function timerHtml(t) {
+  var tm = state.timers[String(t)], elapsed = timerElapsed(t), extra = Math.max(0, elapsed - 600000), running = !!tm.startedAt;
+  return '<section class="timer-card" data-timer-card="' + t + '"><div class="timer-head"><div><div class="eyebrow">CRONÓMETRO DE CAMBIOS</div><h2>Tramo ' + t + '</h2></div><span class="timer-state ' + (running ? "running" : (elapsed >= 600000 ? "over" : "paused")) + '" data-timer-state>' + (running ? (elapsed >= 600000 ? "TIEMPO EXTRA" : "EN MARCHA") : "EN PAUSA") + '</span></div><div class="timer-time" data-elapsed>' + clock(Math.floor(elapsed / 1000)) + '</div><div class="timer-meta"><span>Límite: <b>10:00</b></span><span>Tiempo extra: <b data-extra>' + clock(Math.floor(extra / 1000)) + '</b></span></div><div class="timer-actions"><button class="btn" data-timer-action="' + (running ? "pause" : "start") + '" data-timer="' + t + '">' + (running ? "Pausar cronómetro" : (elapsed ? "Reanudar cronómetro" : "Iniciar cambios")) + '</button><button class="btn ghost" data-timer-action="reset" data-timer="' + t + '"' + (running || !elapsed ? " disabled" : "") + '>Reiniciar</button></div><p class="timer-note">El cronómetro continúa contando al superar los 10 minutos. El exceso queda registrado hasta que lo pauses.</p></section>';
+}
+function manualSectionHtml(t, type) {
+  var meta = MANUAL_POS.filter(function (p) { return p.key === type; })[0], vals = state.manual[String(t)][type], filled = vals.filter(function (v) { return String(v).trim(); }).length, dups = dupSetTramo(t);
+  if (!filled && !state.manualOpen[String(t)][type]) return '<div class="manual-add"><button class="btn ghost" data-manual-open="' + type + '" data-tramo="' + t + '">+ Añadir ' + meta.name + '</button></div>';
+  var cells = ""; for (var k = 0; k < 6; k++) cells += '<div class="slot"><label>' + meta.labels[k] + '</label><input type="text" data-manual="' + type + '" data-tramo="' + t + '" data-i="' + k + '" value="' + esc(vals[k] || "") + '"' + (vals[k] && dups[String(vals[k]).trim().toLowerCase()] ? ' class="dup"' : '') + ' autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="login"></div>';
+  return '<section class="pos manual-pos"><div class="pos-head"><span class="manual-dot"></span><h2>' + meta.name + '</h2><span class="cnt" data-manual-count="' + type + '">' + filled + '/6</span></div><div class="grid">' + cells + '</div><div class="manual-add"><button class="btn ghost" data-manual-hide="' + type + '" data-tramo="' + t + '">Ocultar si está vacío</button></div></section>';
+}
+function buildMoves(P, t) {
+  if (t === 0) return [];
+  var prev = P.p[t - 1], curr = P.p[t], moves = [];
+  P.W.forEach(function (w, i) {
+    var from = prev[i], to = curr[i]; if (from === to) return;
+    var colderToHotter = from > to ? from - to : 0;
+    var effort = AUTO_POS[from].distance + AUTO_POS[to].distance + colderToHotter * 4 + Math.abs(to - from);
+    moves.push({ login: w.login, from: from, to: to, effort: effort, direction: from > to ? "De más frío a más caliente" : "Hacia un puesto más frío" });
+  });
+  moves.sort(function (a, b) { return b.effort - a.effort || b.from - a.from || a.login.localeCompare(b.login); });
+  return moves;
+}
+function orderHtml(P, t) {
+  if (t === 0) return "";
+  var moves = buildMoves(P, t), groups = AUTO_POS.map(function (p, pi) { var ms = moves.filter(function (m) { return m.from === pi; }); return { pi: pi, moves: ms, max: ms.length ? Math.max.apply(null, ms.map(function (m) { return m.effort; })) : -1 }; }).sort(function (a, b) { return b.max - a.max; });
+  var html = '<section class="order-card"><div class="eyebrow">PLANIFICACIÓN DEL CAMBIO</div><h2>Orden recomendado de movimientos</h2><p class="hint">Prioriza los desplazamientos con mayor recorrido estimado, especialmente los que salen de puestos fríos y avanzan hacia puestos calientes. Confirma la cobertura de cada puesto antes de liberar a sus trabajadores.</p>';
+  if (!moves.length) html += '<p class="good">No hay cambios de puesto en este tramo.</p>';
+  else {
+    html += '<div class="first-move"><span>EMPEZAR POR</span><b>' + AUTO_POS[moves[0].from].name + ' → ' + AUTO_POS[moves[0].to].name + '</b><small>' + esc(moves[0].login) + '</small></div><ol class="move-list">';
+    moves.forEach(function (m, i) { html += '<li><b>' + esc(m.login) + '</b><span>' + AUTO_POS[m.from].name + ' → ' + AUTO_POS[m.to].name + '</span><small>' + esc(m.direction) + '</small></li>'; });
+    html += '</ol>';
+  }
+  html += '<div class="coverage"><b>Control de cobertura · escala prioritaria</b><div class="coverage-list">' + AUTO_POS.map(function (p) { var count = moves.filter(function (m) { return m.from === AUTO_POS.indexOf(p); }).length; return '<span>' + p.name + ': ' + (count ? count + ' salida(s)' : 'sin salidas') + '</span>'; }).join("") + '</div></div></section>';
+  return html;
+}
+function renderTramo(t) {
+  var errs = validate(baseCounts()), dup = dupSetTramo(t), html = ""; lastPlan = null;
+  var autoDup = duplicateKeys(state.slots);
+  if (errs.length || Object.keys(autoDup).length) {
+    html = '<div class="notice">' + (errs.length ? 'La plantilla automática no cumple las reglas.' : 'Hay logins duplicados en este tramo.') + '<ul>' + errs.concat(Object.keys(dup).map(function (k) { return 'El login ' + k + ' está asignado más de una vez.'; })).map(function (e) { return '<li>' + esc(e) + '</li>'; }).join("") + '</ul></div><div class="actions"><button class="btn" data-go="plantilla">Corregir plantilla</button></div>';
+    document.getElementById("view").innerHTML = html; return;
+  }
+  var P = computePlan(); if (P.err) { document.getElementById("view").innerHTML = '<div class="notice">' + esc(P.err) + '</div>'; return; }
+  lastPlan = P; var q = query.trim().toLowerCase(), arr = P.p[t], prev = t > 0 ? P.p[t - 1] : null, stay = 0;
+  if (prev) arr.forEach(function (p, w) { if (p === prev[w]) stay++; });
+  html += '<div class="tramo-intro"><div><span class="eyebrow">HORARIO</span><h2>Tramo ' + (t + 1) + '</h2></div><b>' + range(t) + '</b></div>';
+  if (t === 1 || t === 2) html += timerHtml(t + 1);
+  html += '<div class="tools"><input type="search" id="q" placeholder="Buscar un login" value="' + esc(query) + '" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Buscar un login"><div id="trace"></div></div>';
+  if (stay) html += '<div class="notice">' + stay + (stay === 1 ? " persona repite" : " personas repiten") + ' puesto en este cambio. La distribución respeta las plazas disponibles y minimiza las repeticiones posibles.</div>';
+  AUTO_POS.forEach(function (p, pi) {
+    var chips = "", n = 0;
+    P.W.forEach(function (w, wi) { if (arr[wi] !== pi) return; n++; var sub = ""; if (prev) sub = prev[wi] === pi ? '<small class="same">mismo puesto</small>' : '<small>desde ' + AUTO_POS[prev[wi]].short + '</small>'; chips += '<span class="chip' + (q && w.login.toLowerCase().indexOf(q) > -1 ? " hit" : "") + '" data-login="' + esc(w.login.toLowerCase()) + '">' + esc(w.login) + sub + '</span>'; });
+    html += '<section class="pos"><div class="pos-head"><span class="heat" style="background:var(--h' + pi + ')"></span><h2>' + p.name + '</h2><span class="cnt">' + n + (n === 1 ? ' persona' : ' personas') + '</span></div><div class="chips">' + chips + '</div></section>';
+  });
+  html += '<div class="manual-tramo"><div class="eyebrow">ASIGNACIONES MANUALES · TRAMO ' + (t + 1) + '</div><p class="hint">5S y Team Lift no entran en la rotación automática. Edita aquí sus seis huecos para este tramo.</p><div class="notice" id="manual-warning"' + (Object.keys(dup).length ? '' : ' hidden') + '>Hay logins duplicados en las asignaciones de este tramo. Corrige los campos marcados.</div>' + manualSectionHtml(t + 1, "fiveS") + manualSectionHtml(t + 1, "teamLift") + '<div class="actions"><button class="btn ghost" data-copy-manual="' + (t + 1) + '">Copiar asignaciones de Plantilla</button></div></div>';
+  if (t > 0) html += orderHtml(P, t);
+  html += '<div class="actions"><button class="btn" id="copy">Copiar plan completo</button></div><div id="copybox"></div>';
+  document.getElementById("view").innerHTML = html; renderTrace(); updateTimerDisplay();
+}
+function renderTrace() {
+  var el = document.getElementById("trace"); if (!el || !lastPlan) return; var i = findWorker(query);
+  if (i < 0) { el.innerHTML = query.trim() ? '<div class="trace">No hay ningún login con ese texto.</div>' : ""; return; }
+  var li = ""; for (var t = 0; t < 3; t++) li += '<li>' + range(t) + ' · ' + AUTO_POS[lastPlan.p[t][i]].name + '</li>';
+  el.innerHTML = '<div class="trace"><b>' + esc(lastPlan.W[i].login) + '</b><ol>' + li + '</ol></div>';
+}
+function planText() {
+  if (validate(baseCounts()).length) return "La plantilla no cumple las reglas."; var P = computePlan(); if (P.err) return P.err; var out = [];
+  for (var t = 0; t < 3; t++) {
+    out.push("TRAMO " + (t + 1) + " · " + range(t));
+    AUTO_POS.forEach(function (p, pi) { var names = []; P.W.forEach(function (w, wi) { if (P.p[t][wi] === pi) names.push(w.login); }); out.push(p.name + ": " + (names.length ? names.join(", ") : "—")); });
+    MANUAL_POS.forEach(function (p) { var names = state.manual[String(t + 1)][p.key].filter(function (v) { return String(v).trim(); }); if (names.length) out.push(p.name + " (manual): " + names.join(", ")); }); out.push("");
+  }
+  return out.join("\n").trim();
+}
+function render() { renderTabs(); if (tab === "plantilla") renderPlantilla(); else renderTramo(+tab); }
+function clock(sec) { var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60; return pad(h) + ":" + pad(m) + ":" + pad(s); }
+function updateTimerDisplay() {
+  document.querySelectorAll("[data-timer-card]").forEach(function (card) {
+    var t = card.getAttribute("data-timer-card"), tm = state.timers[t], elapsed = timerElapsed(t), extra = Math.max(0, elapsed - 600000), running = !!tm.startedAt;
+    var e = card.querySelector("[data-elapsed]"), x = card.querySelector("[data-extra]"), s = card.querySelector("[data-timer-state]"), b = card.querySelector("[data-timer-action]:not([data-timer-action=reset])"), r = card.querySelector('[data-timer-action="reset"]');
+    if (e) e.textContent = clock(Math.floor(elapsed / 1000)); if (x) x.textContent = clock(Math.floor(extra / 1000));
+    if (s) { s.textContent = running ? (elapsed >= 600000 ? "TIEMPO EXTRA" : "EN MARCHA") : "EN PAUSA"; s.className = "timer-state " + (running ? (elapsed >= 600000 ? "over" : "running") : "paused"); }
+    if (b) { b.textContent = running ? "Pausar cronómetro" : (elapsed ? "Reanudar cronómetro" : "Iniciar cambios"); b.setAttribute("data-timer-action", running ? "pause" : "start"); }
+    if (r) r.disabled = running || !elapsed;
+  });
+}
+function tick() {
+  var el = document.getElementById("status"), now = new Date(), s = new Date(now); s.setHours(0, 0, 0, 0); s.setMinutes(startMin()); if (now - s < -12 * 3600000) s = new Date(s.getTime() - 86400000);
+  var diff = (now - s) / 60000, html;
+  if (diff < 0) html = '<span class="now">Empieza a las ' + hm(startMin()) + '</span><span class="count">' + clock(Math.round(-diff * 60)) + '</span>';
+  else if (diff >= 270) html = '<span class="now">Jornada terminada</span><span class="count">' + hm(startMin() + 270) + '</span>';
+  else { var t = Math.floor(diff / 90), leftS = Math.round((t + 1) * 5400 - diff * 60); html = '<span class="now">Tramo ' + (t + 1) + ' en curso</span><span class="count">' + clock(leftS) + '</span><small>' + (t < 2 ? 'Siguiente cambio a las ' + hm(startMin() + (t + 1) * 90) : 'Último tramo, fin a las ' + hm(startMin() + 270)) + '</small>'; }
+  if (el && el.getAttribute("data-h") !== html) { el.innerHTML = html; el.setAttribute("data-h", html); } updateTimerDisplay();
+}
+
+document.addEventListener("click", function (e) {
+  var b = e.target.closest("[data-tab]"); if (b) { tab = b.getAttribute("data-tab"); render(); window.scrollTo(0, 0); return; }
+  var g = e.target.closest("[data-go]"); if (g && !g.disabled) { tab = g.getAttribute("data-go"); render(); window.scrollTo(0, 0); return; }
+  var timerBtn = e.target.closest("[data-timer-action]");
+  if (timerBtn) { var tt = timerBtn.getAttribute("data-timer"), action = timerBtn.getAttribute("data-timer-action"), tm = state.timers[tt]; if (action === "start" && !tm.startedAt) tm.startedAt = Date.now(); else if (action === "pause" && tm.startedAt) { tm.elapsedMs = timerElapsed(tt); tm.startedAt = null; } else if (action === "reset" && !tm.startedAt) { tm.elapsedMs = 0; tm.startedAt = null; } save(); updateTimerDisplay(); return; }
+  var open = e.target.closest("[data-manual-open]"); if (open) { state.manualOpen[open.getAttribute("data-tramo")][open.getAttribute("data-manual-open")] = true; save(); render(); return; }
+  var hide = e.target.closest("[data-manual-hide]"); if (hide) { var ht = hide.getAttribute("data-tramo"), hk = hide.getAttribute("data-manual-hide"); if (!state.manual[ht][hk].some(function (v) { return String(v).trim(); })) { state.manualOpen[ht][hk] = false; save(); render(); } return; }
+  var cp = e.target.closest("[data-copy-manual]"); if (cp) { var ct = cp.getAttribute("data-copy-manual"); state.manual[ct] = cloneManual(state.manualTemplate); save(); render(); return; }
+  if (e.target.id === "clear") { if (e.target.getAttribute("data-sure")) { state.slots = new Array(TOTAL).fill(""); state.manualTemplate = blankManual(); state.manual = { "1": blankManual(), "2": blankManual(), "3": blankManual() }; save(); render(); } else { e.target.setAttribute("data-sure", "1"); e.target.textContent = "Pulsa otra vez para confirmar"; } return; }
+  if (e.target.id === "copy") { var txt = planText(), box = document.getElementById("copybox"), btn = e.target, fallback = function () { box.innerHTML = '<textarea readonly id="ta"></textarea>'; var ta = document.getElementById("ta"); ta.value = txt; ta.focus(); ta.select(); }; try { navigator.clipboard.writeText(txt).then(function () { btn.textContent = "Copiado"; }, fallback); } catch (err) { fallback(); } }
+});
+document.addEventListener("input", function (e) {
+  var t = e.target;
+  if (t.dataset && t.dataset.i !== undefined && t.dataset.manual === undefined && t.dataset.mt === undefined) { state.slots[+t.dataset.i] = t.value; save(); refreshPlantillaMarks(); }
+  else if (t.dataset && t.dataset.mt) { var mtKey = t.dataset.mt, mtIndex = +t.dataset.i, oldTemplateValue = state.manualTemplate[mtKey][mtIndex]; state.manualTemplate[mtKey][mtIndex] = t.value; ["1", "2", "3"].forEach(function (tr) { if (state.manual[tr][mtKey][mtIndex] === oldTemplateValue) state.manual[tr][mtKey][mtIndex] = t.value; }); save(); refreshPlantillaMarks(); }
+  else if (t.dataset && t.dataset.manual) { state.manual[t.dataset.tramo][t.dataset.manual][+t.dataset.i] = t.value; save(); var dup = dupSetTramo(t.dataset.tramo); document.querySelectorAll("input[data-manual]").forEach(function (inp) { var k = inp.value.trim().toLowerCase(); inp.classList.toggle("dup", !!(k && dup[k])); }); var warn = document.getElementById("manual-warning"); if (warn) warn.hidden = !Object.keys(dup).length; document.querySelectorAll("[data-manual-count]").forEach(function (count) { if (count.getAttribute("data-manual-count") === t.dataset.manual) count.textContent = state.manual[t.dataset.tramo][t.dataset.manual].filter(function (v) { return String(v).trim(); }).length + "/6"; }); }
+  else if (t.id === "start") { if (t.value) { state.start = t.value; save(); renderTabs(); tick(); } }
+  else if (t.id === "q") { query = t.value; var q = query.trim().toLowerCase(); document.querySelectorAll(".chip").forEach(function (c) { c.classList.toggle("hit", !!(q && c.getAttribute("data-login").indexOf(q) > -1)); }); renderTrace(); }
+});
+render(); tick(); setInterval(tick, 1000);
+
+</script>
+<script>
+if ("serviceWorker" in navigator) { window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); }); }
+</script>
+</body>
+</html>
