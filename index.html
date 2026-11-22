@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#edefec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111416" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Rotación de Puestos</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,600;1,700&display=swap">
+<style>
+/* Layout: barra de pestañas fija arriba; una sección por puesto, de caliente a frío; apoyo manual al final. */
+:root {
+  --bg: #edefec;
+  --surface: #fafbf9;
+  --ink: #15191c;
+  --muted: #5b6469;
+  --line: #d2d7d3;
+  --action: #15191c;
+  --action-ink: #fafbf9;
+  --warn: #b3261e;
+  --ok: #2d6a3e;
+  --hit: #fff2b8;
+  --h0: #d8431e;
+  --h1: #ea8a1f;
+  --h2: #5f9c72;
+  --h3: #3e86b8;
+  --h4: #3b5ba8;
+  --h5: #5d74b8;
+  --hF: #8a9296;
+  --hL: #7b5ea7;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "Barlow", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111416; --surface: #1a1f22; --ink: #eceeed; --muted: #98a2a7; --line: #2c3337;
+    --action: #eceeed; --action-ink: #111416; --warn: #ff8a80; --ok: #8fd1a2; --hit: #5a4b10;
+    --h0: #f0643f; --h1: #f5a14a; --h2: #78b88b; --h3: #5ba4d6; --h4: #7f9be0; --h5: #a3b4ea; --hF: #8e989d; --hL: #a88bd9;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111416; --surface: #1a1f22; --ink: #eceeed; --muted: #98a2a7; --line: #2c3337;
+  --action: #eceeed; --action-ink: #111416; --warn: #ff8a80; --ok: #8fd1a2; --hit: #5a4b10;
+  --h0: #f0643f; --h1: #f5a14a; --h2: #78b88b; --h3: #5ba4d6; --h4: #7f9be0; --h5: #a3b4ea; --hF: #8e989d; --hL: #a88bd9;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.4;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 40px;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 720px; margin: 0 auto; }
+header { padding-top: 16px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 34px; letter-spacing: .01em; text-transform: uppercase; margin: 0; line-height: 1; }
+.sub { color: var(--muted); margin: 4px 0 0; font-size: 14px; }
+.status { margin-top: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; justify-content: space-between; }
+.status .now { font-family: var(--display); font-weight: 600; font-size: 22px; text-transform: uppercase; }
+.status .count { font-family: var(--mono); font-size: 20px; font-variant-numeric: tabular-nums; }
+.status small { color: var(--muted); width: 100%; }
+nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding: 12px 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+nav button { font-family: var(--display); font-weight: 600; font-size: 18px; text-transform: uppercase; letter-spacing: .03em; padding: 10px 4px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 6px; cursor: pointer; min-width: 0; }
+nav button small { display: block; font-family: var(--mono); font-weight: 400; font-size: 11px; color: var(--muted); text-transform: none; letter-spacing: 0; }
+nav button[aria-selected="true"] { background: var(--action); color: var(--action-ink); border-color: var(--action); }
+nav button[aria-selected="true"] small { color: inherit; opacity: .8; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--h3); outline-offset: 2px; }
+section.pos { margin-top: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 12px 14px; }
+.pos-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.heat { width: 6px; align-self: stretch; border-radius: 3px; min-height: 26px; }
+.pos-head h2 { font-family: var(--display); font-weight: 600; font-size: 22px; text-transform: uppercase; letter-spacing: .02em; margin: 0; flex: 1; }
+.pos-head .cnt { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.hint { margin: -4px 0 10px; font-size: 13px; color: var(--muted); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.slot { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.slot label { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+input[type=text], input[type=time], input[type=search], input[type=number] {
+  width: 100%; min-width: 0; font: 500 16px var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 9px 10px;
+}
+input.dup { border-color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
+.rules { margin-top: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; font-size: 14px; }
+.rules .r { font-family: var(--mono); font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+.rules ul { margin: 0; padding-left: 18px; color: var(--warn); }
+.rules .good { margin: 0; color: var(--ok); }
+.notice { margin-top: 12px; background: var(--surface); border: 1px solid var(--warn); border-radius: 6px; padding: 12px; color: var(--warn); font-size: 14px; }
+.notice ul { margin: 6px 0 0; padding-left: 18px; }
+.settings { margin-top: 12px; display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+.settings label { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: 220px; }
+.warnmsg { color: var(--warn); font-size: 14px; margin: 10px 0 0; }
+.actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { font: 600 15px var(--body); padding: 11px 16px; border-radius: 6px; border: 1px solid var(--action); background: var(--action); color: var(--action-ink); cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 500 15px var(--mono); padding: 6px 10px; border-radius: 5px; background: var(--bg); border: 1px solid var(--line); min-width: 0; overflow-wrap: anywhere; }
+.chip small { display: block; font: 400 11px var(--body); color: var(--muted); }
+.chip small.same { color: var(--warn); }
+.chip.pt, .ord .nm.pt, .trace b.pt { font-style: italic; font-weight: 700; }
+.ord { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ord li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 1px 10px; align-items: baseline; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.ord li.first { border-color: var(--ink); }
+.ord li.sep { display: block; border: 0; background: none; padding: 8px 0 0; font: 600 13px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ord .num { font: 700 24px var(--display); line-height: 1; grid-row: span 2; align-self: center; }
+.ord .nm { font: 500 16px var(--mono); overflow-wrap: anywhere; min-width: 0; }
+.ord .path { font: 600 17px var(--display); text-transform: uppercase; letter-spacing: .02em; text-align: right; }
+.ord .path b { font-weight: 700; }
+.ord .tag { grid-column: 2 / 4; font-size: 12px; color: var(--muted); }
+@media (max-width: 420px) { .ord li { grid-template-columns: 30px minmax(0, 1fr); } .ord .path { grid-column: 2; text-align: left; } .ord .tag { grid-column: 2; } }
+.swap { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.swap label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+select { width: 100%; min-width: 0; font: 500 15px var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 9px 8px; }
+.edits { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.edits li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); font: 500 14px var(--mono); min-width: 0; }
+.btn.sm { padding: 6px 10px; font-size: 13px; }
+@media (max-width: 420px) { .swap { grid-template-columns: 1fr; } }
+input[type=text].ptin { font-style: italic; font-weight: 700; }
+.chip.hit { background: var(--hit); border-color: var(--ink); }
+.tools { margin-top: 12px; display: grid; gap: 8px; }
+.trace { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; font-size: 15px; }
+.trace b { font-family: var(--mono); font-weight: 500; }
+.trace ol { margin: 6px 0 0; padding-left: 20px; }
+.trace li { margin: 2px 0; }
+textarea { width: 100%; min-height: 160px; margin-top: 10px; font: 14px var(--mono); background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+.legend { margin: 10px 0 0; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.legend i { flex: 1; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--h0), var(--h1), var(--h2), var(--h3), var(--h4), var(--h5)); }
+.apart { margin: 18px 0 0; font-family: var(--display); font-weight: 600; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.swrow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.swtime { font: 500 44px var(--mono); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.swx { font-size: 15px; color: var(--muted); }
+.swtime.over, .swx.over { color: var(--warn); font-weight: 600; }
+.bar { height: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin: 8px 0 10px; }
+.bar i { display: block; height: 100%; width: 0; background: var(--h2); }
+@media (prefers-reduced-motion: no-preference) { nav button { transition: background .15s, color .15s; } .bar i { transition: width .4s linear; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Rotación de Puestos</h1>
+    <p class="sub">3 tramos de 1 h 30 min · 2 cambios en 4 h 30 min</p>
+    <div class="status" id="status"></div>
+  </header>
+  <nav id="tabs" role="tablist"></nav>
+  <main id="view"></main>
+</div>
+
+<script>
+var POS = [
+  { name: "Water Spider", short: "Spider", n: 6 },
+  { name: "Feeder", short: "Feeder", n: 6 },
+  { name: "Inductor", short: "Inductor", n: 6 },
+  { name: "Pusher", short: "Pusher", n: 5 },
+  { name: "Diverter", short: "Diverter", n: 2 },
+  { name: "Straightener", short: "Straightener", n: 2 }
+];
+var LIFT = ["Feeder", "Inductor", "Water Spider", "Stower 1", "Stower 2", "5S"];
+var MANUAL = {
+  lift: { title: "Team Lift", color: "var(--hL)", labels: LIFT },
+  five: { title: "5S", color: "var(--hF)", labels: ["5S 1", "5S 2", "5S 3", "5S 4", "5S 5", "5S 6"] }
+};
+var SMAX = 6, PMIN = 1, PMAX = 5, DMIN = 2, DMAX = 4, LIMIT = 600000, KEY = "rotpuestos.v2";
+var TOTAL = 0, posOfSlot = [], firstOfPos = [];
+POS.forEach(function (p, pi) { firstOfPos.push(posOfSlot.length); for (var k = 0; k < p.n; k++) posOfSlot.push(pi); });
+TOTAL = posOfSlot.length;
+
+function blank() { return [0, 1, 2].map(function () { return new Array(6).fill(""); }); }
+var state = { start: "06:00", slots: [], lift: null, five: null, timers: null, w: null, edits: null };
+var tab = "plantilla", query = "", lastPlan = null, buzzed = {};
+try {
+  var saved = JSON.parse(localStorage.getItem(KEY) || "null");
+  if (saved && saved.slots) {
+    if (saved.lift && !saved.five) saved.lift = saved.lift.map(function (r) { return [r[0], r[1], r[4], r[2], r[3], r[5]]; });
+    var olds = { 23: [5, 6, 6, 3, 3], 25: [5, 6, 6, 4, 4], 31: [5, 6, 6, 4, 4, 6], 33: [6, 6, 6, 5, 4, 6] };
+    if (saved.slots.length === TOTAL) state = saved;
+    else if (olds[saved.slots.length]) {
+      var oldN = olds[saved.slots.length], at = 0, ns = [], fv = [];
+      oldN.forEach(function (n, pi) {
+        var tgt = pi < 5 ? ns : fv, cap = pi < 4 ? POS[pi].n : pi === 4 ? 4 : 6;
+        for (var k = 0; k < cap; k++) tgt.push(k < n ? saved.slots[at + k] : "");
+        at += n;
+      });
+      var five = saved.five;
+      if (!five && fv.length) { five = blank(); five[0] = fv; }
+      state = { start: saved.start || "06:00", slots: ns, lift: saved.lift, five: five, timers: saved.timers, w: saved.w, edits: saved.edits };
+    }
+  }
+} catch (e) {}
+while (state.slots.length < TOTAL) state.slots.push("");
+if (!state.lift || state.lift.length !== 3) state.lift = blank();
+if (!state.five || state.five.length !== 3) state.five = blank();
+if (!state.timers || state.timers.length !== 2) state.timers = [{ acc: 0, since: null }, { acc: 0, since: null }];
+if (state.w && state.w.length === 5) { state.w = state.w.concat([state.w[4]]); state.edits = [[], []]; }
+if (!state.w || state.w.length !== 6) state.w = [5, 4, 3, 2, 1, 1];
+if (!state.edits || state.edits.length !== 2) state.edits = [[], []];
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+function pad(n) { return (n < 10 ? "0" : "") + n; }
+function startMin() { var p = (state.start || "06:00").split(":"); return (+p[0]) * 60 + (+p[1]); }
+function hm(min) { min = ((min % 1440) + 1440) % 1440; return pad(Math.floor(min / 60)) + ":" + pad(min % 60); }
+function range(t) { var s = startMin() + t * 90; return hm(s) + "–" + hm(s + 90); }
+function nk(v) { return v.trim().replace(/^\*+\s*/, "").toLowerCase(); }
+function isPt(v) { return /^\s*\*/.test(v); }
+function esc(s) { return s.replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+/* ---------- reglas ---------- */
+function baseCounts() {
+  var c = [0, 0, 0, 0, 0, 0];
+  state.slots.forEach(function (v, i) { if (v.trim()) c[posOfSlot[i]]++; });
+  return c;
+}
+function ptCounts() {
+  var c = [0, 0, 0, 0, 0, 0];
+  state.slots.forEach(function (v, i) { if (v.trim() && isPt(v)) c[posOfSlot[i]]++; });
+  return c;
+}
+function validate(c) {
+  var m = [], ptc = ptCounts();
+  if (c[0] < 1 || c[0] > SMAX) m.push("Water Spider: debe haber entre 1 y " + SMAX + " personas (hay " + c[0] + ").");
+  if (c[1] !== c[2]) m.push("Feeder e Inductor deben tener el mismo número (hay " + c[1] + " y " + c[2] + ").");
+  if (c[3] < PMIN || c[3] > PMAX) m.push("Pusher: debe haber entre " + PMIN + " y " + PMAX + " personas (hay " + c[3] + ").");
+  if (c[4] + c[5] < DMIN || c[4] + c[5] > DMAX) m.push("Diverter y Straightener: debe haber entre " + DMIN + " y " + DMAX + " personas entre los dos (hay " + (c[4] + c[5]) + ").");
+  if (c[0] > 0 && ptc[0] < 1) m.push("Water Spider: debe haber un puntero (login con * delante).");
+  if (ptc[5] < 1) m.push("Straightener: debe haber un puntero (login con * delante).");
+  if (c[1] > 0 && !state.slots[firstOfPos[1]].trim()) m.push("Feeder: rellena primero el hueco Feeder 1.");
+  if (c[2] > 0 && !state.slots[firstOfPos[2]].trim()) m.push("Inductor: rellena primero el hueco Inductor 1.");
+  return m;
+}
+function workers() {
+  var w = [], seenF = false, seenI = false;
+  state.slots.forEach(function (v, i) {
+    if (!v.trim()) return;
+    var p = posOfSlot[i], cl = p === 0 ? 0 : p === 3 ? 5 : p === 4 ? 6 : p === 5 ? 7 : p === 1 ? (seenF ? 2 : 1) : (seenI ? 4 : 3);
+    if (p === 1) seenF = true; if (p === 2) seenI = true;
+    w.push({ login: v.trim(), p0: p, c0: cl, pt: isPt(v), ln: p === 1 || p === 2 ? i - firstOfPos[p] + 1 : 0 });
+  });
+  return w;
+}
+function manualHas(kind, t) { return state[kind][t].some(function (v) { return v.trim(); }); }
+function showManual(kind) { return manualHas(kind, 0) || manualHas(kind, 1) || manualHas(kind, 2); }
+
+/* ---------- rotación (solo la escala de caliente a frío) ---------- */
+/* Clases internas: 0 Spider · 1 Feeder 1 · 2 resto de Feeder · 3 Inductor 1 · 4 resto de Inductor · 5 Pusher · 6 Diverter · 7 Straightener (Diverter y Straightener comparten el nivel más frío). */
+var CP = [0, 1, 1, 2, 2, 3, 4, 5], LV = [0, 1, 2, 3, 4, 4], HEAVYW = 4, LOADMIN = 4, BIG = 100000, SOFT = 500, IFPEN = 15, TRAVEL = 1, planCache = {};
+function wts() { return state.w.map(function (x) { x = +x; return x > 0 ? x : 1; }); }
+function rngFor(str) {
+  var h = 2166136261;
+  for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return function () { h |= 0; h = h + 0x6D2B79F5 | 0; var t = Math.imul(h ^ h >>> 15, 1 | h); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function shuffled(arr, rnd) { var a = arr.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function classVec(v) { return [v[0], v[1] > 0 ? 1 : 0, Math.max(0, v[1] - 1), v[2] > 0 ? 1 : 0, Math.max(0, v[2] - 1), v[3], v[4], v[5]]; }
+/* Reparto equilibrado: misma carga total para todos, sin dos puestos duros seguidos, sin repetir puesto y con saltos cortos.
+   Regla dura: un puntero en Spider y otro en Straightener en cada tramo. Regla blanda (siempre que sea posible): a Feeder 1 e Inductor 1 (carga 4) no entra quien viene de carga 4 o más. */
+function computePlan(opts) {
+  var W = workers(), w = wts(), key = state.slots.join("|") + "#" + w.join(",") + (opts ? "#" + opts.P1.join("") + "#" + opts.ln1.join(",") : "");
+  if (planCache[key]) return planCache[key];
+  var N = W.length, vec = baseCounts(), cv = classVec(vec);
+  var wc = [w[0], HEAVYW, w[1], HEAVYW, w[2], w[3], w[4], w[5]];
+  var c0 = W.map(function (x) { return x.c0; }), pt = W.map(function (x) { return x.pt ? 1 : 0; });
+  var total = 0; cv.forEach(function (c, q) { total += 3 * c * wc[q]; });
+  var mean = total / N, thr = 2 * mean / 3;
+  function pen(a, b) { var d = wc[a] + wc[b] - thr; return d > 0 ? 3 * d * d : 0; }
+  function tr(x, y) { var px = LV[CP[x]], py = LV[CP[y]], d = Math.abs(px - py); return d === 0 ? 0 : TRAVEL * (d + (py < px ? 1 : 0)); }
+  function gate(a, b) { return (b === 1 || b === 3) && wc[a] >= LOADMIN ? SOFT : 0; }
+  function pc(a, b, c) {
+    var T = wc[a] + wc[b] + wc[c], s = (T - mean) * (T - mean) + pen(a, b) + pen(b, c) + tr(a, b) + tr(b, c) + gate(a, b) + gate(b, c);
+    var pa = CP[a], pb = CP[b], pd = CP[c];
+    if (pa === pb) s += 40; else if (LV[pa] === LV[pb]) s += 12; if (pb === pd) s += 40; else if (LV[pb] === LV[pd]) s += 12; if (pa === pd) s += 3;
+    if (pa === 2 && pb === 1) s += IFPEN;
+    if (pb === 2 && pd === 1) s += IFPEN;
+    return s;
+  }
+  function ptCnt(P, cls) { var n = 0; for (var i = 0; i < N; i++) if (P[i] === cls) n += pt[i]; return n; }
+  function ppen(c) { return (c[0] < 1 ? BIG : 0) + (c[1] < 1 ? BIG : 0); }
+  function climb(P1, P2, only2) {
+    var Ps = [P1, P2], cnt = [[ptCnt(P1, 0), ptCnt(P1, 7)], [ptCnt(P2, 0), ptCnt(P2, 7)]], improved = true, passes = 0;
+    while (improved && passes++ < 60) {
+      improved = false;
+      for (var t = only2 ? 1 : 0; t < 2; t++) {
+        var P = Ps[t];
+        for (var i = 0; i < N; i++) for (var j = i + 1; j < N; j++) {
+          var ci = P[i], cj = P[j];
+          if (ci === cj) continue;
+          var before = pc(c0[i], P1[i], P2[i]) + pc(c0[j], P1[j], P2[j]) + ppen(cnt[t]);
+          P[i] = cj; P[j] = ci;
+          var nc = [
+            cnt[t][0] - (ci === 0 ? pt[i] : 0) - (cj === 0 ? pt[j] : 0) + (cj === 0 ? pt[i] : 0) + (ci === 0 ? pt[j] : 0),
+            cnt[t][1] - (ci === 7 ? pt[i] : 0) - (cj === 7 ? pt[j] : 0) + (cj === 7 ? pt[i] : 0) + (ci === 7 ? pt[j] : 0)
+          ];
+          var after = pc(c0[i], P1[i], P2[i]) + pc(c0[j], P1[j], P2[j]) + ppen(nc);
+          if (after < before - 1e-9) { improved = true; cnt[t] = nc; } else { P[i] = ci; P[j] = cj; }
+        }
+      }
+    }
+  }
+  function totalCost(P1, P2) {
+    var s = (opts ? 0 : ppen([ptCnt(P1, 0), ptCnt(P1, 7)])) + ppen([ptCnt(P2, 0), ptCnt(P2, 7)]);
+    for (var i = 0; i < N; i++) s += pc(c0[i], P1[i], P2[i]);
+    return s;
+  }
+  var slotCls = []; cv.forEach(function (c, q) { for (var k = 0; k < c; k++) slotCls.push(q); });
+  var rnd = rngFor(key), best = null;
+  function consider() {
+    var P1 = opts ? opts.P1.slice() : shuffled(slotCls, rnd), P2 = shuffled(slotCls, rnd);
+    climb(P1, P2, !!opts);
+    var c = totalCost(P1, P2);
+    if (!best || c < best.c - 1e-9) best = { c: c, P1: P1.slice(), P2: P2.slice() };
+  }
+  for (var r = 0; r < 40; r++) consider();
+  for (var r2 = 0; best.c >= BIG / 2 && r2 < 400; r2++) consider();
+  var val;
+  if (best.c >= BIG / 2) {
+    val = { err: "No hay forma de mantener un puntero en Water Spider y otro en Straightener en los tres tramos con estas personas. Prueba a poner más punteros." };
+  } else {
+    var Pc = [c0, best.P1, best.P2], Sl = [[], [], []], lnA = [W.map(function (x) { return x.ln; })];
+    W.forEach(function (x) { if (x.p0 === 1 || x.p0 === 2) Sl[x.p0].push(x.ln); });
+    Sl[1].sort(function (a, b) { return a - b; }); Sl[2].sort(function (a, b) { return a - b; });
+    for (var tt = 1; tt <= 2; tt++) {
+      if (tt === 1 && opts) { lnA.push(opts.ln1.slice()); continue; }
+      var outL = new Array(N).fill(0);
+      [1, 2].forEach(function (pi) {
+        var avail = Sl[pi].slice(), members = [];
+        for (var i = 0; i < N; i++) if (CP[Pc[tt][i]] === pi) members.push(i);
+        members.forEach(function (i) { if (Pc[tt][i] === 1 || Pc[tt][i] === 3) { outL[i] = 1; var k1 = avail.indexOf(1); if (k1 > -1) avail.splice(k1, 1); } });
+        var rest = members.filter(function (i) { return outL[i] === 0; });
+        rest.forEach(function (i) { var pl = lnA[tt - 1][i], k = avail.indexOf(pl); if (pl > 0 && k > -1) { outL[i] = pl; avail.splice(k, 1); } });
+        rest.forEach(function (i) { if (outL[i] === 0) outL[i] = avail.shift() || 0; });
+      });
+      lnA.push(outL);
+    }
+    val = { W: W, p: [W.map(function (x) { return x.p0; }), best.P1.map(function (q) { return CP[q]; }), best.P2.map(function (q) { return CP[q]; })], c: Pc, ln: lnA, vec: vec, w: w, wc: wc };
+  }
+  if (Object.keys(planCache).length > 12) planCache = {};
+  planCache[key] = val;
+  return val;
+}
+
+/* ---------- plan efectivo: plan calculado + cambios manuales (intercambios) ---------- */
+var effCache = { key: "", val: null };
+function effectivePlan() {
+  var B = computePlan();
+  if (B.err) return B;
+  var e = state.edits;
+  if (!e[0].length && !e[1].length) return B;
+  var key = JSON.stringify(e) + "#" + state.slots.join("|") + "#" + state.w.join(",");
+  if (effCache.key === key) return effCache.val;
+  var idx = {}; B.W.forEach(function (x, i) { idx[nk(x.login)] = i; });
+  function swapAt(c, ln, list) {
+    list.forEach(function (pr) {
+      var a = idx[pr[0]], b = idx[pr[1]];
+      if (a == null || b == null || a === b) return;
+      var x = c[a]; c[a] = c[b]; c[b] = x; x = ln[a]; ln[a] = ln[b]; ln[b] = x;
+    });
+  }
+  var P = B;
+  if (e[0].length) {
+    var c1 = B.c[1].slice(), l1 = B.ln[1].slice();
+    swapAt(c1, l1, e[0]);
+    P = computePlan({ P1: c1, ln1: l1 });
+    if (P.err) return P;
+  }
+  var c2 = P.c[2].slice(), l2 = P.ln[2].slice();
+  swapAt(c2, l2, e[1]);
+  var val = { W: P.W, p: [P.p[0], P.p[1], c2.map(function (q) { return CP[q]; })], c: [P.c[0], P.c[1], c2], ln: [P.ln[0], P.ln[1], l2], vec: P.vec, w: P.w, wc: P.wc };
+  effCache = { key: key, val: val };
+  return val;
+}
+
+/* ---------- cronómetro ---------- */
+function fmtMs(ms) { var s = Math.floor(ms / 1000); return pad(Math.floor(s / 60)) + ":" + pad(s % 60); }
+function swHtml(t) {
+  var T = state.timers[t - 1], btns;
+  if (T.since) btns = '<button class="btn" data-sw="pause" data-st="' + t + '">Pausar</button>';
+  else if (T.acc > 0) btns = '<button class="btn" data-sw="start" data-st="' + t + '">Reanudar</button><button class="btn ghost" data-sw="reset" data-st="' + t + '">Reiniciar</button>';
+  else btns = '<button class="btn" data-sw="start" data-st="' + t + '">Iniciar cambios</button>';
+  return '<section class="pos sw"><div class="pos-head"><span class="heat" style="background:var(--ink)"></span><h2>Cronómetro de cambios</h2><span class="cnt">máx. 10 min</span></div>' +
+    '<div class="swrow"><span class="swtime" id="swt">00:00</span><span class="swx" id="swx"></span></div><div class="bar"><i id="swbar"></i></div>' +
+    '<p class="hint">Inícialo cuando empiecen los cambios. Ningún puesto de la escala puede quedarse sin cubrir mientras se hacen.</p><div class="actions" style="margin-top:0">' + btns + "</div></section>";
+}
+function updateSw() {
+  if (tab !== "1" && tab !== "2") return;
+  var k = +tab - 1, T = state.timers[k], ms = T.acc + (T.since ? Date.now() - T.since : 0);
+  var el = document.getElementById("swt"); if (!el) return;
+  var x = document.getElementById("swx"), bar = document.getElementById("swbar"), extra = ms - LIMIT, over = extra >= 1000;
+  el.textContent = fmtMs(ms);
+  if (over) x.textContent = T.since ? "+" + fmtMs(extra) + " de más" : "Tiempo extra registrado: " + fmtMs(extra);
+  else if (T.since) x.textContent = "Quedan " + fmtMs(Math.max(0, LIMIT - ms));
+  else x.textContent = ms > 0 ? "Pausado" : "Listo para empezar";
+  x.className = "swx" + (over ? " over" : "");
+  el.className = "swtime" + (over ? " over" : "");
+  bar.style.width = Math.min(100, ms / LIMIT * 100) + "%";
+  bar.style.background = over ? "var(--warn)" : (ms >= LIMIT * 0.8 ? "var(--h1)" : "var(--h2)");
+  if (T.since && ms >= LIMIT && !buzzed[k]) { buzzed[k] = true; try { if (navigator.vibrate) navigator.vibrate([300, 150, 300]); } catch (e) {} }
+}
+
+/* ---------- orden de los cambios, persona por persona ---------- */
+/* Primero los cambios que cubren Feeder e Inductor (las líneas de inducción no se pueden parar); dentro de cada bloque, de más cerca a más lejos. */
+function orderHtml(P, t) {
+  var prevC = P.c[t - 1], curC = P.c[t], prevP = P.p[t - 1], curP = P.p[t];
+  var nameOf = function (pos, ln) { return POS[pos].name + (ln ? " " + ln : ""); };
+  var rows = [], stay = [];
+  P.W.forEach(function (w, wi) {
+    var p = prevP[wi], q = curP[wi];
+    if (p === q) { stay.push(w.login); return; }
+    rows.push({ w: w, wi: wi, p: p, q: q, line: q === 1 || q === 2, score: Math.abs(LV[q] - LV[p]) + (LV[q] < LV[p] ? 0.5 : 0) });
+  });
+  rows.sort(function (a, b) { return (a.line ? 0 : 1) - (b.line ? 0 : 1) || a.score - b.score || a.p - b.p || P.ln[t][a.wi] - P.ln[t][b.wi] || a.wi - b.wi; });
+  var html = '<section class="pos"><div class="pos-head"><span class="heat" style="background:var(--ink)"></span><h2>Orden de los cambios</h2><span class="cnt">' + rows.length + (rows.length === 1 ? " cambio" : " cambios") + '</span></div>';
+  if (!rows.length) return html + '<p class="hint">No hay cambios de puesto en este tramo.</p></section>';
+  html += '<p class="hint">De arriba abajo: el primero empieza y el último termina. Primero los cambios que cubren Feeder e Inductor, porque las líneas de inducción no se pueden parar; después el resto, de los desplazamientos más cortos a los más largos. Cubre cada puesto antes de dejarlo libre.</p><ol class="ord">';
+  var lastLine = null;
+  rows.forEach(function (r, i) {
+    if (r.line !== lastLine) {
+      html += '<li class="sep">' + (r.line ? "Primero · líneas de inducción (Feeder e Inductor)" : "Después · resto de puestos") + "</li>";
+      lastLine = r.line;
+    }
+    var n = Math.abs(LV[r.q] - LV[r.p]), up = LV[r.q] < LV[r.p], exc = (curC[r.wi] === 1 || curC[r.wi] === 3) && P.wc[prevC[r.wi]] >= LOADMIN;
+    var tag = (n === 0 ? "mismo nivel de calor" : "salto de " + n + (n === 1 ? " puesto" : " puestos") + " · " + (up ? "a más caliente" : "a más frío")) +
+      (i === 0 ? " · empieza aquí" : (i === rows.length - 1 && rows.length > 1 ? " · el último" : "")) +
+      ((r.p === 1 || r.p === 2) && (r.q === 1 || r.q === 2) && P.ln[t - 1][r.wi] === P.ln[t][r.wi] ? " · misma línea" : "") +
+      (exc ? " · excepción, viene de carga " + P.wc[prevC[r.wi]] : "");
+    html += '<li' + (i === 0 ? ' class="first"' : "") + '><span class="num">' + (i + 1) + '</span><span class="nm' + (isPt(r.w.login) ? " pt" : "") + '">' + esc(r.w.login) + '</span>' +
+      '<span class="path">' + nameOf(r.p, P.ln[t - 1][r.wi]) + ' <b>→</b> ' + nameOf(r.q, P.ln[t][r.wi]) + '</span><span class="tag">' + tag + "</span></li>";
+  });
+  html += "</ol>";
+  if (stay.length) html += '<p class="hint" style="margin:10px 0 0">Se quedan en su puesto: ' + stay.map(esc).join(", ") + ".</p>";
+  if (showManual("lift") || showManual("five")) html += '<p class="hint" style="margin:10px 0 0">Después, cambia a mano Team Lift y 5S.</p>';
+  return html + "</section>";
+}
+
+/* ---------- cambio manual en un tramo ---------- */
+function swapHtml(P, t) {
+  var label = function (i) { return POS[P.p[t][i]].name + (P.ln[t][i] ? " " + P.ln[t][i] : ""); };
+  var optList = function (sel) {
+    return P.W.map(function (w, i) { return '<option value="' + esc(nk(w.login)) + '"' + (i === sel ? " selected" : "") + ">" + esc(w.login) + " · " + esc(label(i)) + "</option>"; }).join("");
+  };
+  var names = {}; P.W.forEach(function (w) { names[nk(w.login)] = w.login; });
+  var items = "";
+  state.edits[t - 1].forEach(function (pr, k) {
+    if (!names[pr[0]] || !names[pr[1]]) return;
+    items += '<li><span>' + esc(names[pr[0]]) + " ⇄ " + esc(names[pr[1]]) + '</span><button class="btn ghost sm" data-undo="' + k + '" data-ut="' + t + '">Deshacer</button></li>';
+  });
+  return '<section class="pos"><div class="pos-head"><span class="heat" style="background:var(--ink)"></span><h2>Cambio manual</h2></div>' +
+    '<p class="hint">Si hace falta cambiar a alguien en este tramo, elige a quién poner y en qué puesto. La persona que estaba ahí ocupa el hueco que deja.' + (t === 1 ? " El Tramo 3 se recalcula a partir de este cambio." : "") + '</p>' +
+    '<div class="swap"><label for="sw_b">Poner a<select id="sw_b">' + optList(0) + '</select></label><label for="sw_a">en el puesto de<select id="sw_a">' + optList(P.W.length > 1 ? 1 : 0) + '</select></label></div>' +
+    '<p class="warnmsg" id="swmsg" hidden></p><div class="actions"><button class="btn" data-doswap="' + t + '">Intercambiar</button>' + (items ? '<button class="btn ghost" data-clearedits="' + t + '">Quitar todos</button>' : "") + "</div>" +
+    (items ? '<ul class="edits">' + items + "</ul>" : "") + "</section>";
+}
+
+/* ---------- vistas ---------- */
+function renderTabs() {
+  var items = [["plantilla", "Tramo 1", hm(startMin())]];
+  for (var t = 1; t < 3; t++) items.push([String(t), "Tramo " + (t + 1), hm(startMin() + t * 90) + (state.timers[t - 1].since ? " ●" : "")]);
+  document.getElementById("tabs").innerHTML = items.map(function (it) {
+    return '<button role="tab" data-tab="' + it[0] + '" aria-selected="' + (String(tab) === it[0]) + '">' + it[1] + "<small>" + it[2] + "</small></button>";
+  }).join("");
+}
+function rulesHtml() {
+  var errs = validate(baseCounts());
+  var h = '<p class="r">Spider 1–' + SMAX + ' · Feeder = Inductor · Pusher ' + PMIN + '–' + PMAX + ' · Diverter + Straightener ' + DMIN + '–' + DMAX + ' · Puntero (*) en Spider y en Straightener · Team Lift y 5S: a mano</p>';
+  h += errs.length ? "<ul>" + errs.map(function (e) { return "<li>" + e + "</li>"; }).join("") + "</ul>" : '<p class="good">El reparto cumple las reglas.</p>';
+  return h;
+}
+function manualHtml(kind, t, inPlantilla) {
+  var M = MANUAL[kind], cells = "", filled = 0;
+  M.labels.forEach(function (name, k) {
+    var v = state[kind][t][k]; if (v.trim()) filled++;
+    cells += '<div class="slot"><label for="' + kind + t + '_' + k + '">' + name + '</label><input class="lg' + (isPt(v) ? " ptin" : "") + '" type="text" id="' + kind + t + '_' + k + '" data-g="' + kind + '" data-t="' + t + '" data-k="' + k + '" value="' + esc(v) + '" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="login"></div>';
+  });
+  var hint = "Fuera de la escala de calor. Se rota a mano." + (inPlantilla ? " Aquí va el tramo 1; los demás tramos se editan en su pestaña." : "");
+  var copy = !inPlantilla && t > 0 ? '<div class="actions"><button class="btn ghost" data-copy="' + kind + '" data-t="' + t + '">Copiar del tramo anterior</button></div>' : "";
+  return '<section class="pos"><div class="pos-head"><span class="heat" style="background:' + M.color + '"></span><h2>' + M.title + '</h2><span class="cnt" id="mcnt_' + kind + '">' + filled + '/6</span></div><p class="hint">' + hint + '</p><div class="grid">' + cells + "</div>" + copy + "</section>";
+}
+function rangesText() { return "Tramo 1: " + range(0) + " · Tramo 2: " + range(1) + " · Tramo 3: " + range(2); }
+function renderPlantilla() {
+  var html = '<div class="settings"><label>Inicio del turno<input type="time" id="start" value="' + state.start + '"></label><p class="hint" id="t1range" style="margin:0">' + rangesText() + "</p></div>" +
+    '<p class="hint" style="margin:10px 0 0">Punteros: escribe un asterisco delante del login, por ejemplo *login, y se verá en negrita cursiva. Siempre tiene que haber uno en Water Spider y otro en Straightener (Diverter no lo necesita).</p>';
+  POS.forEach(function (p, pi) {
+    var filled = 0, cells = "";
+    for (var k = 0; k < p.n; k++) {
+      var idx = firstOfPos[pi] + k, v = state.slots[idx];
+      if (v.trim()) filled++;
+      cells += '<div class="slot"><label for="s' + idx + '">' + p.short + " " + (k + 1) + '</label><input class="lg' + (isPt(v) ? " ptin" : "") + '" type="text" id="s' + idx + '" data-i="' + idx + '" value="' + esc(v) + '" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="login"></div>';
+    }
+    html += '<section class="pos"><div class="pos-head"><span class="heat" style="background:var(--h' + pi + ')"></span><h2>' + p.name + '</h2><span class="cnt" id="cnt' + pi + '">' + filled + "/" + p.n + '</span></div>' + (pi === 1 || pi === 2 ? '<p class="hint">' + p.short + ' 1 tiene carga 4: siempre que sea posible, no entra quien venga de un puesto de carga 4 o 5.</p>' : "") + '<div class="grid">' + cells + "</div></section>";
+  });
+  html += '<div class="legend"><span>Caliente</span><i></i><span>Frío</span></div>';
+  html += '<p class="apart">Fuera de la escala · rotación manual</p>' + manualHtml("lift", 0, true) + manualHtml("five", 0, true);
+  html += '<section class="pos"><div class="pos-head"><span class="heat" style="background:var(--ink)"></span><h2>Intensidad física</h2></div><p class="hint">De 1 (suave) a 9 (duro). La rotación reparte los puestos para que la carga total sea parecida entre personas y evita dos puestos duros seguidos. Feeder 1 e Inductor 1 cuentan siempre 4; Feeder e Inductor de aquí son para el resto de huecos.</p><div class="grid">' +
+    POS.map(function (p, pi) { return '<div class="slot"><label for="w' + pi + '">' + p.name + '</label><input type="number" id="w' + pi + '" data-w="' + pi + '" min="1" max="9" step="1" value="' + state.w[pi] + '" inputmode="numeric"></div>'; }).join("") + "</div></section>";
+  html += '<div class="rules" id="rules">' + rulesHtml() + "</div>";
+  html += '<p class="warnmsg" id="dupmsg" hidden>Hay logins repetidos. Revisa los campos marcados en rojo.</p>';
+  html += '<div class="actions"><button class="btn" id="go" data-go="1"' + (validate(baseCounts()).length ? " disabled" : "") + '>Ver Tramo 2</button><button class="btn ghost" id="clear">Vaciar todo</button></div>';
+  document.getElementById("view").innerHTML = html;
+}
+function refreshManualCount(kind, t) {
+  var el = document.getElementById("mcnt_" + kind);
+  if (el) el.textContent = state[kind][t].filter(function (v) { return v.trim(); }).length + "/6";
+}
+function markDups() {
+  var lists;
+  if (tab === "plantilla") lists = state.slots.concat(state.lift[0], state.five[0]);
+  else { var t = +tab; lists = state.lift[t].concat(state.five[t]); if (t === 0) lists = lists.concat(state.slots); }
+  var cnt = {}, any = false;
+  lists.forEach(function (v) { var k = nk(v); if (k) cnt[k] = (cnt[k] || 0) + 1; });
+  document.querySelectorAll("input.lg").forEach(function (inp) {
+    var k = nk(inp.value), d = !!(k && cnt[k] > 1);
+    inp.classList.toggle("dup", d); if (d) any = true;
+  });
+  var m = document.getElementById("dupmsg"); if (m) m.hidden = !any;
+}
+function refreshPlantillaMarks() {
+  var c = baseCounts();
+  POS.forEach(function (p, pi) { var el = document.getElementById("cnt" + pi); if (el) el.textContent = c[pi] + "/" + p.n; });
+  var r = document.getElementById("rules"); if (r) r.innerHTML = rulesHtml();
+  var g = document.getElementById("go"); if (g) g.disabled = validate(c).length > 0;
+  renderTabs(); markDups();
+}
+function renderTrace() {
+  var el = document.getElementById("trace"); if (!el) return;
+  var q = nk(query);
+  if (!q) { el.innerHTML = ""; return; }
+  var cands = [];
+  if (lastPlan) lastPlan.W.forEach(function (w) { cands.push(w.login); });
+  ["lift", "five"].forEach(function (g) { state[g].forEach(function (row) { row.forEach(function (v) { if (v.trim()) cands.push(v.trim()); }); }); });
+  var hit = null;
+  cands.forEach(function (c) { if (!hit && nk(c) === q) hit = c; });
+  if (!hit) cands.forEach(function (c) { if (!hit && nk(c).indexOf(q) > -1) hit = c; });
+  if (!hit) { el.innerHTML = '<div class="trace">No hay ningún login con ese texto.</div>'; return; }
+  var login = nk(hit), li = "";
+  for (var t = 0; t < 3; t++) {
+    var parts = [];
+    if (lastPlan) lastPlan.W.forEach(function (w, i) { if (nk(w.login) === login) parts.push(POS[lastPlan.p[t][i]].name + (lastPlan.ln[t][i] ? " " + lastPlan.ln[t][i] : "")); });
+    state.lift[t].forEach(function (v, k) { if (nk(v) === login) parts.push("Team Lift · " + LIFT[k]); });
+    state.five[t].forEach(function (v) { if (nk(v) === login) parts.push("5S"); });
+    li += "<li>" + range(t) + " · " + (parts.length ? parts.join(" / ") : "sin puesto asignado") + "</li>";
+  }
+  el.innerHTML = '<div class="trace"><b' + (isPt(hit) ? ' class="pt"' : "") + '>' + esc(hit) + "</b><ol>" + li + "</ol></div>";
+}
+function manualTail(t) {
+  var h = "";
+  if (showManual("lift") || showManual("five")) h += '<p class="apart">Fuera de la escala · rotación manual</p>';
+  if (showManual("lift")) h += manualHtml("lift", t, false);
+  if (showManual("five")) h += manualHtml("five", t, false);
+  return h + '<p class="warnmsg" id="dupmsg" hidden>Hay logins repetidos en este tramo. Revisa los campos marcados en rojo.</p>';
+}
+function balanceHtml(P, t) {
+  var tot = P.W.map(function (x, wi) { var s = 0; for (var k = 0; k <= t; k++) s += P.wc[P.c[k][wi]]; return s; });
+  var mn = Math.min.apply(null, tot), mx = Math.max.apply(null, tot), avg = tot.reduce(function (a, b) { return a + b; }, 0) / tot.length;
+  return '<p class="hint" style="margin:12px 0 0">Carga ' + (t === 2 ? "total del turno" : "acumulada hasta aquí") + ": de " + mn + " a " + mx + ", media " + avg.toFixed(1) + ". Intensidad: " + POS.map(function (p, i) { return p.short + " " + P.w[i]; }).join(" · ") + ". Feeder 1 e Inductor 1: " + HEAVYW + ".</p>";
+}
+function renderTramo(t) {
+  var errs = validate(baseCounts()), html = t > 0 ? swHtml(t) : "";
+  lastPlan = null;
+  if (errs.length) {
+    html += '<div class="notice">El reparto del Tramo 1 no cumple las reglas, así que no se puede calcular la rotación.<ul>' + errs.map(function (e) { return "<li>" + e + "</li>"; }).join("") + '</ul></div><div class="actions"><button class="btn" data-go="plantilla">Corregir Tramo 1</button></div>';
+    document.getElementById("view").innerHTML = html + manualTail(t); return;
+  }
+  var P = effectivePlan();
+  if (P.err) {
+    html += '<div class="notice">' + P.err + '</div><div class="actions"><button class="btn" data-go="plantilla">Corregir Tramo 1</button></div>';
+    document.getElementById("view").innerHTML = html + manualTail(t); return;
+  }
+  lastPlan = P;
+  var q = nk(query), arr = P.p[t], prev = t > 0 ? P.p[t - 1] : null, stay = 0;
+  if (prev) { arr.forEach(function (p, w) { if (p === prev[w]) stay++; }); html += orderHtml(P, t) + swapHtml(P, t) + balanceHtml(P, t); }
+  html += '<div class="tools"><input type="search" id="q" placeholder="Buscar un login" value="' + esc(query) + '" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Buscar un login"><div id="trace"></div></div>';
+  var exc = 0;
+  if (prev) P.W.forEach(function (w, wi) { var q = P.c[t][wi]; if ((q === 1 || q === 3) && P.wc[P.c[t - 1][wi]] >= LOADMIN) exc++; });
+  [[0, "Water Spider"], [7, "Straightener"]].forEach(function (z) {
+    var n = 0; P.W.forEach(function (w, wi) { if (P.c[t][wi] === z[0] && w.pt) n++; });
+    if (!n) html += '<div class="notice">Sin puntero en ' + z[1] + ' en este tramo.</div>';
+  });
+  if (exc) html += '<div class="notice">' + exc + (exc === 1 ? " persona entra" : " personas entran") + " en Feeder 1 o Inductor 1 viniendo de un puesto de carga 4 o más: no había otra forma de cubrirlos.</div>";
+  if (stay) html += '<div class="notice">' + stay + (stay === 1 ? " persona repite" : " personas repiten") + " puesto en este cambio: con el mismo número de personas por puesto no hay otra combinación.</div>";
+  POS.forEach(function (p, pi) {
+    var chips = "", items = [];
+    P.W.forEach(function (w, wi) { if (arr[wi] === pi) items.push({ w: w, wi: wi, cl: P.c[t][wi] }); });
+    var fi = pi === 1 || pi === 2;
+    items.sort(function (a, b) { return fi ? P.ln[t][a.wi] - P.ln[t][b.wi] : a.cl - b.cl; });
+    items.forEach(function (it) {
+      var w = it.w, wi = it.wi, sub = "";
+      if (prev) {
+        var ld = 0, lab = fi ? p.short + " " + P.ln[t][wi] + " · " : "";
+        if ((it.cl === 1 || it.cl === 3) && P.wc[P.c[t - 1][wi]] >= LOADMIN) lab += "excepción, viene de carga " + P.wc[P.c[t - 1][wi]] + " · ";
+        for (var tt = 0; tt <= t; tt++) ld += P.wc[P.c[tt][wi]];
+        sub = prev[wi] === pi ? '<small class="same">' + lab + "mismo puesto · carga " + ld + "</small>" : "<small>" + lab + "desde " + POS[prev[wi]].short + " · carga " + ld + "</small>";
+      }
+      chips += '<span class="chip' + (isPt(w.login) ? " pt" : "") + (q && nk(w.login).indexOf(q) > -1 ? " hit" : "") + '" data-login="' + esc(nk(w.login)) + '">' + esc(w.login) + sub + "</span>";
+    });
+    var n = items.length;
+    html += '<section class="pos"><div class="pos-head"><span class="heat" style="background:var(--h' + pi + ')"></span><h2>' + p.name + '</h2><span class="cnt">' + n + (n === 1 ? " persona" : " personas") + '</span></div><div class="chips">' + chips + "</div></section>";
+  });
+  html += manualTail(t);
+  html += '<div class="actions"><button class="btn" id="copy">Copiar plan completo</button></div><div id="copybox"></div>';
+  document.getElementById("view").innerHTML = html;
+  renderTrace();
+}
+function planText() {
+  if (validate(baseCounts()).length) return "El reparto del Tramo 1 no cumple las reglas.";
+  var P = effectivePlan(), out = [];
+  if (P.err) return P.err;
+  for (var t = 0; t < 3; t++) {
+    out.push("TRAMO " + (t + 1) + " · " + range(t));
+    POS.forEach(function (p, pi) {
+      var names = [];
+      P.W.forEach(function (w, wi) { if (P.p[t][wi] === pi) names.push(w.login + (pi === 1 || pi === 2 ? " [" + P.ln[t][wi] + "]" : "")); });
+      out.push(p.name + ": " + (names.length ? names.join(", ") : "—"));
+    });
+    if (showManual("lift")) {
+      var lf = LIFT.map(function (nm, k) { var v = state.lift[t][k].trim(); return v ? nm + " " + v : ""; }).filter(Boolean);
+      if (lf.length) out.push("Team Lift: " + lf.join(", "));
+    }
+    if (showManual("five")) {
+      var fv = state.five[t].map(function (v) { return v.trim(); }).filter(Boolean);
+      if (fv.length) out.push("5S: " + fv.join(", "));
+    }
+    out.push("");
+  }
+  return out.join("\n").trim();
+}
+function render() {
+  renderTabs();
+  if (tab === "plantilla") renderPlantilla(); else renderTramo(+tab);
+  markDups(); updateSw();
+}
+
+document.addEventListener("click", function (e) {
+  var ds = e.target.closest("[data-doswap]");
+  if (ds) {
+    var tt = +ds.getAttribute("data-doswap"), sb = document.getElementById("sw_b"), sa = document.getElementById("sw_a"), mg = document.getElementById("swmsg");
+    if (!sb || !sa) return;
+    if (sb.value === sa.value) { if (mg) { mg.textContent = "Elige dos personas distintas."; mg.hidden = false; } return; }
+    state.edits[tt - 1].push([sb.value, sa.value]); save(); render(); return;
+  }
+  var ud = e.target.closest("[data-undo]");
+  if (ud) { state.edits[+ud.getAttribute("data-ut") - 1].splice(+ud.getAttribute("data-undo"), 1); save(); render(); return; }
+  var ce = e.target.closest("[data-clearedits]");
+  if (ce) { state.edits[+ce.getAttribute("data-clearedits") - 1] = []; save(); render(); return; }
+  var sw = e.target.closest("[data-sw]");
+  if (sw) {
+    var k = +sw.getAttribute("data-st") - 1, T = state.timers[k], act = sw.getAttribute("data-sw");
+    if (act === "start") { if (!T.since) T.since = Date.now(); }
+    else if (act === "pause") { if (T.since) { T.acc += Date.now() - T.since; T.since = null; } }
+    else if (act === "reset") {
+      if (!sw.getAttribute("data-sure")) { sw.setAttribute("data-sure", "1"); sw.textContent = "Pulsa otra vez para reiniciar"; return; }
+      T.acc = 0; T.since = null; buzzed[k] = false;
+    }
+    save(); render(); return;
+  }
+  var cp = e.target.closest("[data-copy]");
+  if (cp) { var kind = cp.getAttribute("data-copy"), tt = +cp.getAttribute("data-t"); state[kind][tt] = state[kind][tt - 1].slice(); save(); render(); return; }
+  var b = e.target.closest("[data-tab]");
+  if (b) { tab = b.getAttribute("data-tab"); render(); window.scrollTo(0, 0); return; }
+  var g = e.target.closest("[data-go]");
+  if (g && !g.disabled) { tab = g.getAttribute("data-go"); render(); window.scrollTo(0, 0); return; }
+  if (e.target.id === "clear") {
+    if (e.target.getAttribute("data-sure")) {
+      state.slots = new Array(TOTAL).fill(""); state.lift = blank(); state.five = blank(); state.edits = [[], []];
+      state.timers = [{ acc: 0, since: null }, { acc: 0, since: null }]; buzzed = {}; save(); render();
+    } else { e.target.setAttribute("data-sure", "1"); e.target.textContent = "Pulsa otra vez para confirmar"; }
+    return;
+  }
+  if (e.target.id === "copy") {
+    var txt = planText(), box = document.getElementById("copybox"), btn = e.target;
+    var fallback = function () {
+      box.innerHTML = '<textarea readonly id="ta"></textarea>';
+      var ta = document.getElementById("ta"); ta.value = txt; ta.focus(); ta.select();
+    };
+    try { navigator.clipboard.writeText(txt).then(function () { btn.textContent = "Copiado"; }, fallback); }
+    catch (err) { fallback(); }
+  }
+});
+document.addEventListener("input", function (e) {
+  var t = e.target;
+  if (t.classList && t.classList.contains("lg")) t.classList.toggle("ptin", isPt(t.value));
+  if (t.dataset && t.dataset.g) { state[t.dataset.g][+t.dataset.t][+t.dataset.k] = t.value; save(); refreshManualCount(t.dataset.g, +t.dataset.t); markDups(); }
+  else if (t.dataset && t.dataset.i !== undefined) { state.slots[+t.dataset.i] = t.value; state.edits = [[], []]; save(); refreshPlantillaMarks(); }
+  else if (t.dataset && t.dataset.w !== undefined) { var wn = parseInt(t.value, 10); if (wn >= 1 && wn <= 9) { state.w[+t.dataset.w] = wn; state.edits = [[], []]; save(); } }
+  else if (t.id === "start") { if (t.value) { state.start = t.value; save(); renderTabs(); tick(); var rg = document.getElementById("t1range"); if (rg) rg.textContent = rangesText(); } }
+  else if (t.id === "q") {
+    query = t.value;
+    var q = nk(query);
+    document.querySelectorAll(".chip").forEach(function (c) { c.classList.toggle("hit", !!(q && c.getAttribute("data-login").indexOf(q) > -1)); });
+    renderTrace();
+  }
+});
+
+function clock(sec) { var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60; return pad(h) + ":" + pad(m) + ":" + pad(s); }
+function tick() {
+  var el = document.getElementById("status"), now = new Date();
+  var s = new Date(now); s.setHours(0, 0, 0, 0); s.setMinutes(startMin());
+  if (now - s < -12 * 3600000) s = new Date(s.getTime() - 86400000);
+  var diff = (now - s) / 60000, html;
+  if (diff < 0) {
+    html = '<span class="now">Empieza a las ' + hm(startMin()) + '</span><span class="count">' + clock(Math.round(-diff * 60)) + "</span>";
+  } else if (diff >= 270) {
+    html = '<span class="now">Jornada terminada</span><span class="count">' + hm(startMin() + 270) + "</span>";
+  } else {
+    var t = Math.floor(diff / 90), leftS = Math.round((t + 1) * 5400 - diff * 60);
+    html = '<span class="now">Tramo ' + (t + 1) + ' en curso</span><span class="count">' + clock(leftS) + "</span><small>" +
+      (t < 2 ? "Siguiente cambio a las " + hm(startMin() + (t + 1) * 90) : "Último tramo, fin a las " + hm(startMin() + 270)) + "</small>";
+  }
+  if (el.getAttribute("data-h") !== html) { el.innerHTML = html; el.setAttribute("data-h", html); }
+  updateSw();
+}
+
+render(); tick(); setInterval(tick, 1000);
+</script>
+<script>
+if ("serviceWorker" in navigator) { window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); }); }
+</script>
+</body>
+</html>
